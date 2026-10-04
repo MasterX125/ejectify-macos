@@ -1,0 +1,46 @@
+name: Build Ejectify
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: macos-26
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Build Ejectify
+        run: |
+          xcodebuild \
+            -project Ejectify.xcodeproj \
+            -scheme Ejectify \
+            -configuration Release \
+            -derivedDataPath build \
+            -destination 'platform=macOS,arch=arm64' \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build
+
+      - name: Find built app
+        run: |
+          find build -name "Ejectify.app" -print
+
+      - name: Package app
+        run: |
+          mkdir -p artifact
+          cp -R "$(find build -name 'Ejectify.app' -type d | head -n 1)" artifact/Ejectify.app
+          ditto -c -k --sequesterRsrc --keepParent artifact/Ejectify.app Ejectify.zip
+
+      - name: Upload Ejectify
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ejectify-macOS
+          path: Ejectify.zip
