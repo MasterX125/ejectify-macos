@@ -2,45 +2,59 @@ name: Build Ejectify
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 jobs:
   build:
     runs-on: macos-26
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Show Xcode version
-        run: xcodebuild -version
+      - name: Show environment
+        run: |
+          sw_vers
+          xcodebuild -version
 
       - name: Build Ejectify
         run: |
           xcodebuild \
-            -project Ejectify.xcodeproj \
+            -project ./Ejectify.xcodeproj \
             -scheme Ejectify \
             -configuration Release \
-            -derivedDataPath build \
+            -derivedDataPath ./build \
             -destination 'platform=macOS,arch=arm64' \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             build
 
-      - name: Find built app
+      - name: Locate Ejectify.app
         run: |
-          find build -name "Ejectify.app" -print
+          find ./build -type d -name "Ejectify.app" -print
 
-      - name: Package app
+      - name: Package application
         run: |
-          mkdir -p artifact
-          cp -R "$(find build -name 'Ejectify.app' -type d | head -n 1)" artifact/Ejectify.app
-          ditto -c -k --sequesterRsrc --keepParent artifact/Ejectify.app Ejectify.zip
+          APP_PATH=$(find ./build -type d -name "Ejectify.app" | head -n 1)
+
+          if [ -z "$APP_PATH" ]; then
+            echo "Ejectify.app was not found!"
+            exit 1
+          fi
+
+          mkdir -p ./artifact
+
+          ditto "$APP_PATH" "./artifact/Ejectify.app"
+
+          ditto \
+            -c \
+            -k \
+            --sequesterRsrc \
+            --keepParent \
+            "./artifact/Ejectify.app" \
+            "./artifact/Ejectify.zip"
 
       - name: Upload Ejectify
         uses: actions/upload-artifact@v4
         with:
-          name: Ejectify-macOS
-          path: Ejectify.zip
+          name: Ejectify-macOS-arm64
+          path: ./artifact/Ejectify.zip
